@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4K Scaled Glass Dashboard with Glass Text</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Increased zoom to scale images UP, fitting perfectly inside the 4000px box */
+    --zoom: 4.2;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; width: 100%; overflow: auto; background: #0a1628; }
+
+  /* --- 4K SCENE DIMENSIONS --- */
+  .scene-container {
+    width: 4000px;
+    height: 4000px;
+    position: relative;
+    z-index: 10;
+    overflow: hidden;
+  }
+
+  /* --- BACKGROUND TIED TO SCENE --- */
+  .glass-bg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    /* Gradient offsets mathematically adjusted to the new shifted coordinates */
+    background: linear-gradient(
+      180deg,
+      #0066ff 0px,
+      #00ccff calc(10px * var(--zoom)),
+      #d946ef calc(630px * var(--zoom)),
+      #ff69b4 100%
+    );
+    z-index: 0;
+  }
+
+  .glass-bg::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: radial-gradient(circle at 30% 40%, rgba(100, 220, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 70% 60%, rgba(150, 100, 255, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .grid-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    background-image:
+      linear-gradient(0deg, rgba(255, 255, 255, 0.05) 2px, transparent 2px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.05) 2px, transparent 2px);
+    background-size: calc(80px * var(--zoom)) calc(80px * var(--zoom));
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .scene {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+  }
+
+  /* --- STATIC GLASS SHAPES (Proportionally scaled for 4000x4000) --- */
+  .glass-shape {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 40%;
+    backdrop-filter: blur(calc(20px * var(--zoom)));
+  }
+
+  .shape-1 { width: 900px; height: 900px; top: 5%; left: 5%; box-shadow: 0 0 125px #00d9ff; }
+  .shape-2 { width: 1100px; height: 1100px; top: 15%; left: 35%; box-shadow: 0 0 150px #3b82f6; }
+  .shape-3 { width: 750px; height: 750px; top: 10%; right: 10%; box-shadow: 0 0 100px #0066ff; }
+  .shape-4 { width: 1250px; height: 1250px; top: 40%; left: 15%; box-shadow: 0 0 175px #a855f7; }
+  .shape-5 { width: 1000px; height: 1000px; top: 45%; right: 25%; box-shadow: 0 0 125px #ec4899; }
+  .shape-6 { width: 1500px; height: 1500px; bottom: 5%; right: 5%; box-shadow: 0 0 200px #d946ef; }
+  .shape-7 { width: 800px; height: 800px; bottom: 15%; left: 10%; box-shadow: 0 0 100px #ff69b4; }
+  .shape-8 { width: 900px; height: 900px; bottom: 30%; left: 50%; box-shadow: 0 0 150px #8b5cf6; }
+
+  /* --- EXISTING VIBRANT GLASS PANEL --- */
+  .panel {
+    position: absolute;
+    cursor: grab;
+    display: inline-block;
+    line-height: 0;
+    border-radius: calc(5px * var(--zoom));
+  }
+
+  .glass-card {
+    position: relative;
+    border-radius: calc(5px * var(--zoom));
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.01);
+    backdrop-filter: blur(calc(6px * var(--zoom))) saturate(180%);
+    border: calc(1px * var(--zoom)) solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 calc(20px * var(--zoom)) calc(40px * var(--zoom)) calc(-10px * var(--zoom)) rgba(0, 0, 0, 0.7);
+  }
+
+  .panel img {
+    display: block;
+    height: auto;
+    mix-blend-mode: plus-lighter;
+    opacity: 0.75;
+    filter: contrast(1.1) brightness(1.1);
+    border-radius: calc(5px * var(--zoom));
+  }
+
+  .panel.main img { width: calc(500px * var(--zoom)); }
+  .panel:not(.main) img { width: calc(280px * var(--zoom)); }
+
+  /* STATIC LIGHTING LAYERS FOR PANELS */
+  .glass-layer { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; }
+  .refraction { background: radial-gradient(ellipse at var(--light-x, 30%) var(--light-y, 20%), rgba(255, 255, 255, 0.15) 0%, transparent 80%); mix-blend-mode: overlay; }
+  .shine-panel { background: linear-gradient(var(--shine-angle, 135deg), rgba(255, 255, 255, 0.3) 0%, transparent 45%); mix-blend-mode: screen; }
+  .light-streak-panel { background: linear-gradient(var(--streak-angle, 110deg), transparent 35%, rgba(255, 255, 255, 0.06) 50%, transparent 65%); mix-blend-mode: overlay; }
+  .fresnel-panel { box-shadow: inset 0 calc(1px * var(--zoom)) calc(1px * var(--zoom)) rgba(255, 255, 255, 0.3); }
+
+  /* --- GLASS TEXT EFFECT STYLES --- */
+  .glass-text {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 900;
+    font-size: calc(100px * var(--zoom));
+    width: calc(280px * var(--zoom));
+    letter-spacing: -0.02em;
+    position: absolute;
+    /* Adjusted coordinates to match the new container mapping */
+    top: calc(370px * var(--zoom));
+    left: calc(255px * var(--zoom));
+    transform: translate(-50%, -50%);
+    cursor: grab;
+    user-select: none;
+    text-align: center;
+    z-index: 260;
+    opacity: 1.5;
+  }
+
+  .glass-text:active {
+    cursor: grabbing;
+  }
+
+  .glass-text-inner {
+    position: relative;
+    display: inline-block;
+    filter: drop-shadow(0 0 calc(20px * var(--zoom)) rgba(100, 200, 255, 0.3));
+  }
+
+  .text-glass-layer {
+    color: transparent;
+    position: relative;
+    z-index: 2;
+    background: linear-gradient(135deg,
+      rgba(255,255,255,0.35) 0%,
+      rgba(240,248,255,0.25) 20%,
+      rgba(200,220,255,0.18) 50%,
+      rgba(230,240,255,0.15) 75%,
+      rgba(255,255,255,0.08) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+
+  .glass-text-inner::after {
+    content: 'Glyphscribe AI';
+    position: absolute;
+    top: calc(-4px * var(--zoom));
+    left: 0;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 900;
+    font-size: inherit;
+    letter-spacing: -0.02em;
+    background: linear-gradient(
+      to bottom,
+      rgba(135, 206, 250, 0.95) 0%,
+      rgba(100, 180, 255, 0.7) 10%,
+      rgba(100, 180, 255, 0.4) 25%,
+      transparent 40%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    z-index: 9;
+    filter: drop-shadow(0 0 calc(12px * var(--zoom)) rgba(100, 200, 255, 0.8))
+            drop-shadow(0 0 calc(24px * var(--zoom)) rgba(100, 200, 255, 0.4))
+            drop-shadow(0 calc(-2px * var(--zoom)) calc(8px * var(--zoom)) rgba(200, 230, 255, 0.6));
+    pointer-events: none;
+  }
+
+  .text-light-streak-1 {
+    content: 'Glyphscribe AI';
+    position: absolute;
+    top: 0; left: 0;
+    font-size: inherit;
+    background: linear-gradient(135deg, transparent 20%, rgba(100, 200, 255, 0.9) 35%, rgba(255, 255, 255, 1) 50%, rgba(100, 200, 255, 0.7) 65%, transparent 80%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    z-index: 6;
+    mix-blend-mode: overlay;
+    opacity: 0.85;
+  }
+
+  .text-light-streak-2 {
+    content: 'Glyphscribe AI';
+    position: absolute;
+    top: 0; left: 0;
+    font-size: inherit;
+    background: linear-gradient(45deg, transparent 15%, rgba(135, 206, 250, 0.8) 30%, rgba(255, 255, 255, 0.95) 45%, rgba(150, 220, 255, 0.6) 60%, transparent 75%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    z-index: 5;
+    mix-blend-mode: screen;
+    opacity: 0.75;
+  }
+
+  .text-light-streak-vertical {
+    content: 'Glyphscribe AI';
+    position: absolute;
+    top: 0; left: 0;
+    font-size: inherit;
+    background: linear-gradient(180deg, transparent 0%, rgba(200, 230, 255, 0.7) 25%, rgba(255, 255, 255, 1) 50%, rgba(200, 230, 255, 0.6) 75%, transparent 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    z-index: 8;
+    mix-blend-mode: overlay;
+    opacity: 0.8;
+  }
+</style>
+</head>
+<body>
+
+  <div class="scene-container">
+
+    <div class="glass-bg">
+      <div class="glass-shape shape-1"></div>
+      <div class="glass-shape shape-2"></div>
+      <div class="glass-shape shape-3"></div>
+      <div class="glass-shape shape-4"></div>
+      <div class="glass-shape shape-5"></div>
+      <div class="glass-shape shape-6"></div>
+      <div class="glass-shape shape-7"></div>
+      <div class="glass-shape shape-8"></div>
+    </div>
+
+    <div class="grid-overlay"></div>
+
+    <div class="scene" id="drag-area">
+
+      <div class="glass-text">
+          <span class="glass-text-inner">
+              <span class="text-glass-layer">Glyphscribe AI</span>
+              <span class="text-light-streak-1">Glyphscribe AI</span>
+              <span class="text-light-streak-2">Glyphscribe AI</span>
+              <span class="text-light-streak-vertical">Glyphscribe AI</span>
+          </span>
+      </div>
+
+      <div class="panel main" data-x="50" data-y="230" style="z-index: 229; --light-x: 20%; --light-y: 10%; --shine-angle: 145deg; --streak-angle: 120deg;">
+        <div class="glass-card">
+          <img src="8.png">
+          <div class="glass-layer refraction"></div><div class="glass-layer shine-panel"></div><div class="glass-layer light-streak-panel"></div><div class="glass-layer fresnel-panel"></div>
+        </div>
+      </div>
+
+      <div class="panel" data-x="157" data-y="13" style="transform: rotate(-6deg); z-index: 251; --light-x: 60%; --light-y: 20%; --shine-angle: 110deg; --streak-angle: 95deg;">
+        <div class="glass-card"><img src="1.png"><div class="glass-layer refraction"></div><div class="glass-layer shine-panel"></div><div class="glass-layer light-streak-panel"></div><div class="glass-layer fresnel-panel"></div></div>
+      </div>
+
+      <div class="panel" data-x="430" data-y="275" style="transform: rotate(8deg); z-index: 228; --light-x: 10%; --light-y: 50%; --shine-angle: 160deg; --streak-angle: 140deg;">
+        <div class="glass-card"><img src="2.png"><div class="glass-layer refraction"></div><div class="glass-layer shine-panel"></div><div class="glass-layer light-streak-panel"></div><div class="glass-layer fresnel-panel"></div></div>
+      </div>
+
+      <div class="panel" data-x="156" data-y="548" style="transform: rotate(4deg); z-index: 224; --light-x: 80%; --light-y: 70%; --shine-angle: 200deg; --streak-angle: 110deg;">
+        <div class="glass-card"><img src="3.png"><div class="glass-layer refraction"></div><div class="glass-layer shine-panel"></div><div class="glass-layer light-streak-panel"></div><div class="glass-layer fresnel-panel"></div></div>
+      </div>
+
+      <div class="panel" data-x="278" data-y="149" style="transform: rotate(-4deg); z-index: 252; --light-x: 30%; --light-y: 30%; --shine-angle: 125deg; --streak-angle: 105deg;">
+        <div class="glass-card"><img src="4.png"><div class="glass-layer refraction"></div><div class="glass-layer shine-panel"></div><div class="glass-layer light-streak-panel"></div><div class="glass-layer fresnel-panel"></div></div>
+      </div>
+
+      <div class="panel" data-x="61" data-y="163" style="transform: rotate(5deg); z-index: 253; --light-x: 70%; --light-y: 10%; --shine-angle: 90deg; --streak-angle: 130deg;">
+        <div class="glass-card"><img src="5.png"><div class="glass-layer refraction"></div><div class="glass-layer shine-panel"></div><div class="glass-layer light-streak-panel"></div><div class="glass-layer fresnel-panel"></div></div>
+      </div>
+
+      <div class="panel" data-x="62" data-y="435" style="transform: rotate(-7deg); z-index: 231; --light-x: 40%; --light-y: 80%; --shine-angle: 180deg; --streak-angle: 100deg;">
+        <div class="glass-card"><img src="6.png"><div class="glass-layer refraction"></div><div class="glass-layer shine-panel"></div><div class="glass-layer light-streak-panel"></div><div class="glass-layer fresnel-panel"></div></div>
+      </div>
+
+      <div class="panel" data-x="275" data-y="417" style="transform: rotate(3deg); z-index: 230; --light-x: 15%; --light-y: 15%; --shine-angle: 135deg; --streak-angle: 115deg;">
+        <div class="glass-card"><img src="7.png"><div class="glass-layer refraction"></div><div class="glass-layer shine-panel"></div><div class="glass-layer light-streak-panel"></div><div class="glass-layer fresnel-panel"></div></div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+  const zoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--zoom'));
+  let highestZ = 300;
+
+  document.querySelectorAll(".panel, .glass-text").forEach(element => {
+
+    if (element.classList.contains('panel')) {
+      const startX = parseFloat(element.dataset.x) * zoom;
+      const startY = parseFloat(element.dataset.y) * zoom;
+      element.style.left = startX + "px";
+      element.style.top = startY + "px";
+    }
+
+    let offsetX, offsetY, dragging = false;
+
+    element.addEventListener("mousedown", e => {
+      if (e.button !== 0) return;
+      dragging = true;
+      offsetX = e.clientX - element.offsetLeft;
+      offsetY = e.clientY - element.offsetTop;
+      element.style.zIndex = ++highestZ;
+    });
+
+    document.addEventListener("mousemove", e => {
+      if (!dragging) return;
+      element.style.left = (e.clientX - offsetX) + "px";
+      element.style.top = (e.clientY - offsetY) + "px";
+    });
+
+    document.addEventListener("mouseup", () => dragging = false);
+  });
+</script>
+
+</body>
+</html>
